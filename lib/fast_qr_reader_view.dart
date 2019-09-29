@@ -37,7 +37,7 @@ String serializeResolutionPreset(ResolutionPreset resolutionPreset) {
     case ResolutionPreset.low:
       return 'low';
   }
-  throw new ArgumentError('Unknown ResolutionPreset value');
+  throw ArgumentError('Unknown ResolutionPreset value');
 }
 
 List<String> serializeCodeFormatsList(List<CodeFormat> formats) {
@@ -62,7 +62,7 @@ CameraLensDirection _parseCameraLensDirection(String string) {
     case 'external':
       return CameraLensDirection.external;
   }
-  throw new ArgumentError('Unknown CameraLensDirection value');
+  throw ArgumentError('Unknown CameraLensDirection value');
 }
 
 /// Completes with a list of available cameras.
@@ -72,13 +72,13 @@ Future<List<CameraDescription>> availableCameras() async {
   try {
     final List<dynamic> cameras = await _channel.invokeMethod('availableCameras');
     return cameras.map((dynamic camera) {
-      return new CameraDescription(
+      return CameraDescription(
         name: camera['name'],
         lensDirection: _parseCameraLensDirection(camera['lensFacing']),
       );
     }).toList();
   } on PlatformException catch (e) {
-    throw new QRReaderException(e.code, e.message);
+    throw QRReaderException(e.code, e.message);
   }
 }
 
@@ -141,13 +141,13 @@ PermissionStatus _getPermissionStatus(String status) {
 ///
 /// Opens the native iOS or Android settings screens for the current app,
 /// So that the user can give the app permission even if he has denied them
-Future<void> openSettings() {
-  try {
-    return _channel.invokeMethod('settings');
-  } on PlatformException catch (e) {
-    return Future.error(e);
-  }
-}
+//Future<void> openSettings() {
+//  try {
+//    return _channel.invokeMethod('settings');
+//  } on PlatformException catch (e) {
+//    return Future.error(e);
+//  }
+//}
 
 /// Enum to give us the status of the Permission request/check
 enum PermissionStatus {
@@ -210,7 +210,7 @@ class QRReaderPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return controller.value.isInitialized ? new Texture(textureId: controller._textureId) : new Container();
+    return controller.value.isInitialized ? Texture(textureId: controller._textureId) : Container();
   }
 }
 
@@ -255,7 +255,7 @@ class QRReaderValue {
     String errorDescription,
     Size previewSize,
   }) {
-    return new QRReaderValue(
+    return QRReaderValue(
       isInitialized: isInitialized ?? this.isInitialized,
       errorDescription: errorDescription,
       previewSize: previewSize ?? this.previewSize,
@@ -289,7 +289,7 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   int _textureId;
   bool _isDisposed = false;
   StreamSubscription<dynamic> _eventSubscription;
-  Completer<Null> _creatingCompleter;
+  Completer<void> _creatingCompleter;
 
   QRReaderController(this.description, this.resolutionPreset, this.codeFormats, this.onCodeRead)
       : super(const QRReaderValue.uninitialized());
@@ -297,13 +297,14 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   /// Initializes the camera on the device.
   ///
   /// Throws a [QRReaderException] if the initialization fails.
-  Future<Null> initialize() async {
+  Future<void> initialize() async {
     if (_isDisposed) {
-      return new Future<Null>.value(null);
+      return Future<void>.value();
     }
+
     try {
-      _channel.setMethodCallHandler(_handleMethod);
-      _creatingCompleter = new Completer<Null>();
+      _creatingCompleter = Completer<void>();
+//      _channel.setMethodCallHandler(_handleMethod);
       final Map<dynamic, dynamic> reply = await _channel.invokeMethod(
         'initialize',
         <String, dynamic>{
@@ -315,89 +316,95 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
       _textureId = reply['textureId'];
       value = value.copyWith(
         isInitialized: true,
-        previewSize: new Size(
+        previewSize: Size(
           reply['previewWidth'].toDouble(),
           reply['previewHeight'].toDouble(),
         ),
       );
     } on PlatformException catch (e) {
-      throw new QRReaderException(e.code, e.message);
+      throw QRReaderException(e.code, e.message);
     }
-    _eventSubscription =
-        new EventChannel('fast_qr_reader_view/cameraEvents$_textureId').receiveBroadcastStream().listen(_listener);
-    _creatingCompleter.complete(null);
+    _creatingCompleter.complete();
     return _creatingCompleter.future;
+//    _eventSubscription =
+//        EventChannel('fast_qr_reader_view/cameraEvents$_textureId').receiveBroadcastStream().listen(_listener);
   }
 
   /// Listen to events from the native plugins.
   ///
   /// A "cameraClosing" event is sent when the camera is closed automatically by the system (for example when the app go to background). The plugin will try to reopen the camera automatically but any ongoing recording will end.
-  void _listener(dynamic event) {
-    final Map<dynamic, dynamic> map = event;
-    if (_isDisposed) {
-      return;
-    }
-
-    switch (map['eventType']) {
-      case 'error':
-        value = value.copyWith(errorDescription: event['errorDescription']);
-        break;
-      case 'cameraClosing':
-        value = value.copyWith(isScanning: false);
-        break;
-    }
-  }
+//  void _listener(dynamic event) {
+//    final Map<dynamic, dynamic> map = event;
+//    if (_isDisposed) {
+//      return;
+//    }
+//
+//    switch (map['eventType']) {
+//      case 'error':
+//        value = value.copyWith(errorDescription: event['errorDescription']);
+//        break;
+//      case 'cameraClosing':
+//        value = value.copyWith(isScanning: false);
+//        break;
+//    }
+//  }
 
   /// Toggle flashlight
-  Future<Null> toggleFlash() async {
-    try {
-      value = value.copyWith(isScanning: false);
-      await _channel.invokeMethod(
-        'toggleFlash',
-        <String, dynamic>{'textureId': _textureId},
-      );
-    } on PlatformException catch (e) {
-      throw new QRReaderException(e.code, e.message);
-    }
-  }
+//  Future<void> toggleFlash() async {
+//    try {
+//      value = value.copyWith(isScanning: false);
+//      await _channel.invokeMethod(
+//        'toggleFlash',
+//        <String, dynamic>{'textureId': _textureId},
+//      );
+//    } on PlatformException catch (e) {
+//      throw QRReaderException(e.code, e.message);
+//    }
+//  }
 
   /// Start a QR scan.
   ///
   /// Throws a [QRReaderException] if the capture fails.
-  Future<Null> startScanning() async {
+  Future<void> startScanning() async {
     if (!value.isInitialized || _isDisposed) {
-      throw new QRReaderException(
+      throw QRReaderException(
         'Uninitialized QRReaderController',
         'startScanning was called on uninitialized QRReaderController',
       );
     }
     if (value.isScanning) {
-      throw new QRReaderException(
+      throw QRReaderException(
         'A scan has already started.',
         'startScanning was called when a recording is already started.',
       );
     }
     try {
-      value = value.copyWith(isScanning: true);
       await _channel.invokeMethod(
         'startScan',
         <String, dynamic>{'textureId': _textureId},
       );
+      value = value.copyWith(isScanning: true);
     } on PlatformException catch (e) {
-      throw new QRReaderException(e.code, e.message);
+      throw QRReaderException(e.code, e.message);
     }
+
+    _eventSubscription = EventChannel('fast_qr_reader_view/scan').receiveBroadcastStream().listen((dynamic data) {
+      if (data is String) {
+        print('Dart Accept data = $data');
+      }
+    });
   }
 
   /// Stop scanning.
-  Future<Null> stopScanning() async {
+  Future<void> stopScanning() async {
     if (!value.isInitialized || _isDisposed) {
-      throw new QRReaderException(
+      throw QRReaderException(
         'Uninitialized QRReaderController',
         'stopScanning was called on uninitialized QRReaderController',
       );
     }
     if (!value.isScanning) {
-      throw new QRReaderException(
+      throw QRReaderException(
         'No scanning is happening',
         'stopScanning was called when the scanner was not scanning.',
       );
@@ -409,45 +416,38 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
         <String, dynamic>{'textureId': _textureId},
       );
     } on PlatformException catch (e) {
-      throw new QRReaderException(e.code, e.message);
+      throw QRReaderException(e.code, e.message);
     }
   }
 
   /// Releases the resources of this camera.
   @override
-  Future<Null> dispose() async {
+  Future<void> dispose() async {
     if (_isDisposed) {
-      return new Future<Null>.value(null);
+      return;
     }
+
     _isDisposed = true;
     super.dispose();
-    if (_creatingCompleter == null) {
-      return new Future<Null>.value(null);
-    } else {
-      return _creatingCompleter.future.then((_) async {
-        await _channel.invokeMethod(
-          'dispose',
-          <String, dynamic>{'textureId': _textureId},
-        );
-        await _eventSubscription?.cancel();
-      });
+
+    if (_creatingCompleter != null) {
+      await _creatingCompleter.future;
+      await _channel.invokeMethod<void>(
+        'dispose',
+        <String, dynamic>{'textureId': _textureId},
+      );
+      await _eventSubscription?.cancel();
     }
   }
 
-  Future<dynamic> _handleMethod(MethodCall call) async {
-    switch (call.method) {
-      case "updateCode":
-        if (value.isScanning) {
-          onCodeRead(call.arguments);
-          value = value.copyWith(isScanning: false);
-        }
-    }
-  }
-}
-
-class FastQrReaderView {
-  static Future<String> get platformVersion async {
-    final String version = await _channel.invokeMethod('getPlatformVersion');
-    return version;
-  }
+// use EventChannel -> _eventSubscription ?
+//  Future<dynamic> _handleMethod(MethodCall call) async {
+//    switch (call.method) {
+//      case "updateCode":
+//        if (value.isScanning) {
+//          onCodeRead(call.arguments);
+//          value = value.copyWith(isScanning: false);
+//        }
+//    }
+//  }
 }

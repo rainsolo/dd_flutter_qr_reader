@@ -29,13 +29,13 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.14.11"
-  fast_qr_reader_view:
+  dd_flutter_qr_reader:
     dependency: "direct dev"
     description:
       path: ".."
       relative: true
     source: path
-    version: "0.1.6"
+    version: "0.0.1"
   flutter:
     dependency: "direct main"
     description: flutter

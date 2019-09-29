@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:fast_qr_reader_view/fast_qr_reader_view.dart';
+import 'package:dd_flutter_qr_reader/fast_qr_reader_view.dart';
 
 List<CameraDescription> cameras;
 
@@ -11,25 +11,29 @@ Future<Null> main() async {
   } on QRReaderException catch (e) {
     logError(e.code, e.description);
   }
-  runApp(new MyApp());
+  runApp(MaterialApp(
+    home: Builder(
+      builder: (_) => MyApp(),
+    ),
+  ));
 }
 
-void logError(String code, String message) =>
-    print('Error: $code\nError Message: $message');
+void logError(String code, String message) => print('Error: $code\nError Message: $message');
 
 class MyApp extends StatefulWidget {
   @override
   _MyAppState createState() => new _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
-  QRReaderController controller;
+class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  QRReaderController qrController;
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
   AnimationController animationController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     animationController = new AnimationController(
       vsync: this,
@@ -40,18 +44,39 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       this.setState(() {});
     });
     animationController.forward();
-    verticalPosition = Tween<double>(begin: 0.0, end: 300.0).animate(
-        CurvedAnimation(parent: animationController, curve: Curves.linear))
-      ..addStatusListener((state) {
-        if (state == AnimationStatus.completed) {
-          animationController.reverse();
-        } else if (state == AnimationStatus.dismissed) {
-          animationController.forward();
-        }
-      });
+    verticalPosition = Tween<double>(begin: 0.0, end: 300.0)
+        .animate(CurvedAnimation(parent: animationController, curve: Curves.linear))
+          ..addStatusListener((state) {
+            if (state == AnimationStatus.completed) {
+              animationController.reverse();
+            } else if (state == AnimationStatus.dismissed) {
+              animationController.forward();
+            }
+          });
 
     // pick the first available camera
     onNewCameraSelected(cameras[0]);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App state changed before we got the chance to initialize.
+    if (qrController == null || !qrController.value.isInitialized) {
+      return;
+    }
+    if (state == AppLifecycleState.inactive) {
+      qrController?.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      if (qrController != null) {
+        onNewCameraSelected(qrController.description);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Animation<double> verticalPosition;
@@ -67,8 +92,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
         floatingActionButton: FloatingActionButton(
           child: new Icon(Icons.check),
           onPressed: () {
-            showInSnackBar(
-                "Just proving you can put anything on top of the scanner");
+            showInSnackBar("Just proving you can put anything on top of the scanner");
           },
         ),
         body: Stack(
@@ -81,26 +105,27 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                 ),
               ),
             ),
-            Center(
-              child: Stack(
-                children: <Widget>[
-                  SizedBox(
-                    height: 300.0,
-                    width: 300.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.red, width: 2.0)),
-                    ),
-                  ),
-                  Positioned(
-                    top: verticalPosition.value,
-                    child: Container(
+            RepaintBoundary(
+              child: Center(
+                child: Stack(
+                  children: <Widget>[
+                    SizedBox(
+                      height: 300.0,
                       width: 300.0,
-                      height: 2.0,
-                      color: Colors.red,
+                      child: Container(
+                        decoration: BoxDecoration(border: Border.all(color: Colors.red, width: 2.0)),
+                      ),
                     ),
-                  )
-                ],
+                    Positioned(
+                      top: verticalPosition.value,
+                      child: Container(
+                        width: 300.0,
+                        height: 2.0,
+                        color: Colors.red,
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ],
@@ -111,7 +136,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
 
   /// Display the preview from the camera (or a message if the preview is not available).
   Widget _cameraPreviewWidget() {
-    if (controller == null || !controller.value.isInitialized) {
+    if (qrController == null || !qrController.value.isInitialized) {
       return const Text(
         'No camera selected',
         style: const TextStyle(
@@ -122,8 +147,8 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       );
     } else {
       return new AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
-        child: new QRReaderPreview(controller),
+        aspectRatio: qrController.value.aspectRatio,
+        child: new QRReaderPreview(qrController),
       );
     }
   }
@@ -132,39 +157,38 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
     showInSnackBar(value.toString());
     // ... do something
     // wait 5 seconds then start scanning again.
-    new Future.delayed(const Duration(seconds: 5), controller.startScanning);
+//    new Future.delayed(const Duration(seconds: 5), qrController.startScanning);
   }
 
   void onNewCameraSelected(CameraDescription cameraDescription) async {
-    if (controller != null) {
-      await controller.dispose();
+    if (qrController != null) {
+      await qrController.dispose();
     }
-    controller = new QRReaderController(cameraDescription, ResolutionPreset.high,
-        [CodeFormat.qr, CodeFormat.pdf417], onCodeRead);
+    qrController = new QRReaderController(
+        cameraDescription, ResolutionPreset.high, [CodeFormat.qr, CodeFormat.pdf417], onCodeRead);
 
     // If the controller is updated then update the UI.
-    controller.addListener(() {
+    qrController.addListener(() {
       if (mounted) setState(() {});
-      if (controller.value.hasError) {
-        showInSnackBar('Camera error ${controller.value.errorDescription}');
+      if (qrController.value.hasError) {
+        showInSnackBar('Camera error ${qrController.value.errorDescription}');
       }
     });
 
     try {
-      await controller.initialize();
+      await qrController.initialize();
+
+      if (mounted) {
+        setState(() {});
+        qrController.startScanning();
+      }
     } on QRReaderException catch (e) {
       logError(e.code, e.description);
       showInSnackBar('Error: ${e.code}\n${e.description}');
     }
-
-    if (mounted) {
-      setState(() {});
-      controller.startScanning();
-    }
   }
 
   void showInSnackBar(String message) {
-    _scaffoldKey.currentState
-        .showSnackBar(new SnackBar(content: new Text(message)));
+    _scaffoldKey.currentState.showSnackBar(new SnackBar(content: new Text(message)));
   }
 }

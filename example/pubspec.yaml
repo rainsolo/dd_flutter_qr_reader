@@ -9,7 +9,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  fast_qr_reader_view:
+  dd_flutter_qr_reader:
     path: ../
 
 # For information on the generic Dart part of this file, see the
