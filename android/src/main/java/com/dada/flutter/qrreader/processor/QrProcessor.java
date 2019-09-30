@@ -83,8 +83,8 @@ public class QrProcessor implements VisionImageProcessor {
 
     @Override
     public void process(ByteBuffer data, FrameMetadata frameMetadata) {
-                Log.d("zf", "w = " + frameMetadata.getWidth() + " h = " + frameMetadata.getHeight()
-                        + " r = " + frameMetadata.getRotation());
+//                Log.i("zf", "w = " + frameMetadata.getWidth() + " h = " + frameMetadata.getHeight()
+//                        + " r = " + frameMetadata.getRotation());
 
         if (hasStopped)
             return;

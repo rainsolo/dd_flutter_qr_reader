@@ -27,9 +27,9 @@ fileprivate let cameraError: [String : String] = [
 
 class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDelegate, FlutterStreamHandler, AVCaptureMetadataOutputObjectsDelegate {
     
-//    var textureId: Int64 = 0
+    //    var textureId: Int64 = 0
     var onFrameAvailable: (() -> Void)?
-    var eventChannel: FlutterEventChannel?
+//    var eventChannel: FlutterEventChannel?
     var eventSink: FlutterEventSink?
     let captureSession: AVCaptureSession
     let captureDevice: AVCaptureDevice
@@ -38,18 +38,17 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
     let captureMetadataOutput: AVCaptureMetadataOutput
     var latestPixelBuffer: Unmanaged<CVPixelBuffer>?
     var previewSize: CGSize
-//    var captureSize: CGSize
-        
-//    var videoWriter: AVAssetWriter
-//    var videoWriterInput: AVAssetWriterInput
-        //@property(strong, nonatomic) AVAssetWriterInput *audioWriterInput;
-//    var assetWriterPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor
+    //    var captureSize: CGSize
+    
+    //    var videoWriter: AVAssetWriter
+    //    var videoWriterInput: AVAssetWriterInput
+    //@property(strong, nonatomic) AVAssetWriterInput *audioWriterInput;
+    //    var assetWriterPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor
     var isScanning: Bool = false
-    var channel: FlutterMethodChannel
     var codeFormats: [String] = []
     var torchIsOn: Bool = false
-        
-    init?(cameraName: String, resolutionPreset:String, methodChannel: FlutterMethodChannel, codeFormats:[String]) {
+    
+    init?(cameraName: String, resolutionPreset: String, codeFormats:[String]) {
         self.captureSession = AVCaptureSession()
         captureSession.sessionPreset = AVCaptureSession.Preset.high
         
@@ -61,16 +60,16 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
             return nil
         }
         self.captureVideoInput = captureVideoInput
-
+        
         let dimensions = CMVideoFormatDescriptionGetDimensions(self.captureDevice.activeFormat.formatDescription);
         self.previewSize = CGSize(width: Double(dimensions.width), height: Double(dimensions.height))
-
+        
         self.captureVideoOutput = AVCaptureVideoDataOutput()
         self.captureVideoOutput.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
         self.captureVideoOutput.alwaysDiscardsLateVideoFrames = true
-
+        
         let connection = AVCaptureConnection(inputPorts: self.captureVideoInput.ports, output: self.captureVideoOutput)
         if (self.captureDevice.position == AVCaptureDevice.Position.front) {
             connection.isVideoMirrored = true
@@ -80,16 +79,16 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
         self.captureSession.addOutputWithNoConnections(self.captureVideoOutput)
         self.captureSession.add(connection)
         
-    //    _capturePhotoOutput = [AVCapturePhotoOutput new];
-    //    [_captureSession addOutput:_capturePhotoOutput];
-        self.channel = methodChannel
+        //    _capturePhotoOutput = [AVCapturePhotoOutput new];
+        //    [_captureSession addOutput:_capturePhotoOutput];
+//        self.scanChannel = scanChannel
         self.codeFormats = codeFormats
         let dispatchQueue = DispatchQueue(label: "qrDetectorQueue")
         self.captureMetadataOutput = AVCaptureMetadataOutput()
         self.captureSession.addOutput(self.captureMetadataOutput)
-
+        
         //    NSLog(@"QR Code: %@", [_captureMetadataOutput availableMetadataObjectTypes]);
-
+        
         let availableFormats: [String: AVMetadataObject.ObjectType] = [
             "code39": AVMetadataObject.ObjectType.code39,
             "code93": AVMetadataObject.ObjectType.code93,
@@ -102,7 +101,7 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
             "datamatrix": AVMetadataObject.ObjectType.dataMatrix,
             "pdf417": AVMetadataObject.ObjectType.pdf417,
             "qr": AVMetadataObject.ObjectType.qr,
-        ]
+            ]
         
         let reqFormats = availableFormats.filter({ codeFormats.contains($0.key) }).map( {$0.value} )
         self.captureMetadataOutput.metadataObjectTypes = reqFormats
@@ -134,7 +133,7 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
         guard let qr = result else {
             return
         }
-
+        
         guard !qr.isEmpty else {
             return
         }
@@ -143,19 +142,20 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
             return
         }
         
-        channel.invokeMethod("updateCode", arguments: qr)
+        eventSink?(qr)
+        //        channel.invokeMethod("updateCode", arguments: qr)
         isScanning = false
     }
-
-//    func stopScanning(result: FlutterResult) {
-//        isScanning = false;
-//    }
-//
-//    func startScanning(result: FlutterResult) {
-//        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1) {
-//            self.isScanning = true
-//        }
-//    }
+    
+    //    func stopScanning(result: FlutterResult) {
+    //        isScanning = false;
+    //    }
+    //
+    //    func startScanning(result: FlutterResult) {
+    //        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1) {
+    //            self.isScanning = true
+    //        }
+    //    }
     
     // MARK: camera delegate
     
@@ -172,7 +172,7 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
             }
         }
     }
-
+    
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard output == captureVideoOutput else {
             return
@@ -180,15 +180,15 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
         guard let newBuffer: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return
         }
-//        swap(newBuffer: newBuffer)
+        //        swap(newBuffer: newBuffer)
         
         latestPixelBuffer = Unmanaged.passRetained(newBuffer)
         
         onFrameAvailable?()
         if !CMSampleBufferDataIsReady(sampleBuffer) {
             eventSink?([
-                    "event": "error",
-                    "errorDescription" : "sample buffer is not ready. Skipping sample",
+                "event": "error",
+                "errorDescription" : "sample buffer is not ready. Skipping sample",
                 ]
             )
         }
@@ -199,15 +199,15 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
     func copyPixelBuffer() -> Unmanaged<CVPixelBuffer>? {
         return latestPixelBuffer
         
-//        let pointer : UnsafeMutablePointer<UnsafeMutableRawPointer?> = UnsafeMutablePointer.allocate(capacity: 1)
-//        pointer.pointee = latestPixelBuffer?.toOpaque()
-//        var pixelBuffer: UnsafeMutableRawPointer? = pointer.pointee
-//        while (!OSAtomicCompareAndSwapPtrBarrier(pixelBuffer, nil, pointer)) {
-//            latestPixelBuffer = pointer.pointee != nil ? Unmanaged.fromOpaque(pointer.pointee!) : nil
-//            pixelBuffer = latestPixelBuffer?.toOpaque()
-//        }
-//
-//        return pixelBuffer == nil ? nil : Unmanaged.fromOpaque(pixelBuffer!)
+        //        let pointer : UnsafeMutablePointer<UnsafeMutableRawPointer?> = UnsafeMutablePointer.allocate(capacity: 1)
+        //        pointer.pointee = latestPixelBuffer?.toOpaque()
+        //        var pixelBuffer: UnsafeMutableRawPointer? = pointer.pointee
+        //        while (!OSAtomicCompareAndSwapPtrBarrier(pixelBuffer, nil, pointer)) {
+        //            latestPixelBuffer = pointer.pointee != nil ? Unmanaged.fromOpaque(pointer.pointee!) : nil
+        //            pixelBuffer = latestPixelBuffer?.toOpaque()
+        //        }
+        //
+        //        return pixelBuffer == nil ? nil : Unmanaged.fromOpaque(pixelBuffer!)
     }
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
@@ -221,47 +221,47 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
     }
     
     
-//    private func swap(newBuffer: CVImageBuffer) {
-//        let pointer : UnsafeMutablePointer<UnsafeMutableRawPointer?> = UnsafeMutablePointer.allocate(capacity: 1)
-//        pointer.pointee = latestPixelBuffer?.toOpaque()
-//        var oldValuePointer: UnsafeMutableRawPointer? = pointer.pointee;
-//        let newValuePointer = Unmanaged.passUnretained(newBuffer).toOpaque()
-//
-//        func loopBuffer() {
-//            if OSAtomicCompareAndSwapPtrBarrier(oldValuePointer, newValuePointer, pointer) {
-//                if let pointee = pointer.pointee {
-//                    self.latestPixelBuffer = Unmanaged.fromOpaque(pointee)
-//                } else {
-//                    self.latestPixelBuffer = nil
-//                }
-//                return
-//            } else {
-//                oldValuePointer = latestPixelBuffer?.toOpaque();
-//                loopBuffer()
-//            }
-//        }
-//
-//        loopBuffer()
-//    }
+    //    private func swap(newBuffer: CVImageBuffer) {
+    //        let pointer : UnsafeMutablePointer<UnsafeMutableRawPointer?> = UnsafeMutablePointer.allocate(capacity: 1)
+    //        pointer.pointee = latestPixelBuffer?.toOpaque()
+    //        var oldValuePointer: UnsafeMutableRawPointer? = pointer.pointee;
+    //        let newValuePointer = Unmanaged.passUnretained(newBuffer).toOpaque()
+    //
+    //        func loopBuffer() {
+    //            if OSAtomicCompareAndSwapPtrBarrier(oldValuePointer, newValuePointer, pointer) {
+    //                if let pointee = pointer.pointee {
+    //                    self.latestPixelBuffer = Unmanaged.fromOpaque(pointee)
+    //                } else {
+    //                    self.latestPixelBuffer = nil
+    //                }
+    //                return
+    //            } else {
+    //                oldValuePointer = latestPixelBuffer?.toOpaque();
+    //                loopBuffer()
+    //            }
+    //        }
+    //
+    //        loopBuffer()
+    //    }
 }
 
 public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
     
     let registry: FlutterTextureRegistry
     let messenger: FlutterBinaryMessenger
+    let scanChannel: FlutterEventChannel
     var camera: FMCam?
-    let channel: FlutterMethodChannel
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "fast_qr_reader_view", binaryMessenger: registrar.messenger())
-        let instance = SwiftFastQrReaderViewPlugin(registry: registrar.textures(), messager: registrar.messenger(), channel: channel);
+        let instance = SwiftFastQrReaderViewPlugin(registry: registrar.textures(), messager: registrar.messenger());
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
-     private init(registry: FlutterTextureRegistry, messager: FlutterBinaryMessenger, channel: FlutterMethodChannel) {
+    private init(registry: FlutterTextureRegistry, messager: FlutterBinaryMessenger) {
         self.registry = registry
         self.messenger = messager
-        self.channel = channel;
+        self.scanChannel = FlutterEventChannel(name: "fast_qr_reader_view/scan", binaryMessenger: messager)
         super.init()
     }
     
@@ -283,9 +283,9 @@ public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
                     ];
                     
                 default:
-                        return ["name": device.uniqueID,
-                                "lensFacing": "external"
-                        ];
+                    return ["name": device.uniqueID,
+                            "lensFacing": "external"
+                    ];
                 }
             }
             result(reply);
@@ -301,36 +301,38 @@ public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
             let formats: [String] = arguments["codeFormats"] as! [String]
             self.camera?.dispose()
             
-            guard let camera = FMCam(cameraName: cameraName, resolutionPreset: resolutionPreset, methodChannel: channel, codeFormats: formats) else {
+            guard let camera = FMCam(cameraName: cameraName, resolutionPreset: resolutionPreset, codeFormats: formats) else {
                 // TODO: 报错
                 result(cameraError);
                 return
             }
             
             self.camera = camera
-
+            
             let textureId = self.registry.register(camera)
             self.camera?.onFrameAvailable = { [weak self] in
                 self?.registry.textureFrameAvailable(textureId);
             }
             
-            let eventChannel = FlutterEventChannel(name: "fast_qr_reader_view/cameraEvents\(textureId)", binaryMessenger: messenger)
-            eventChannel.setStreamHandler(camera)
-            camera.eventChannel = eventChannel
+            //            let eventChannel = FlutterEventChannel(name: "fast_qr_reader_view/cameraEvents\(textureId)", binaryMessenger: messenger)
+            //            eventChannel.setStreamHandler(camera)
+            //            camera.eventChannel = eventChannel
             result([
-                    "textureId": textureId,
-                    "previewWidth": camera.previewSize.width,
-                    "previewHeight": camera.previewSize.height,
-//                    "captureWidth": camera.captureSize.width,
-//                    "captureHeight": camera.captureSize.height,
+                "textureId": textureId,
+                "previewWidth": camera.previewSize.width,
+                "previewHeight": camera.previewSize.height,
+                //                    "captureWidth": camera.captureSize.width,
+                //                    "captureHeight": camera.captureSize.height,
                 ] as [String : Any]);
-//            self.camera?.start()
+            //            self.camera?.start()
             
         } else if ("startScan" == call.method) {
+            self.scanChannel.setStreamHandler(self.camera)
             self.camera?.start()
             result(true)
         }
         else if ("stopScan" == call.method) {
+            self.scanChannel.setStreamHandler(nil)
             self.camera?.stop()
             result(true)
         }
@@ -366,7 +368,7 @@ public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
         } else {
             let argsMap: [String: Any] = call.arguments as! [String : Any]
             let textureId = argsMap["textureId"] as! Int64
-
+            
             if ("dispose" == call.method) {
                 self.registry.unregisterTexture(textureId)
                 self.camera?.dispose()

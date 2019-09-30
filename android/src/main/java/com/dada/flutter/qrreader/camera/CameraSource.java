@@ -23,7 +23,6 @@ import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.os.Process;
 import android.util.Log;
-import android.util.Size;
 import android.view.Surface;
 import android.view.WindowManager;
 
@@ -71,8 +70,8 @@ public class CameraSource {
     private Activity activity;
     private TextureRegistry.SurfaceTextureEntry surfaceTextureEntry;
     private Camera camera;
-    private Size requestedSize;
-    private Size previewSize;
+    private PreviewSize requestedSize;
+    private PreviewSize previewSize;
 
     // These values may be requested by the caller.  Due to hardware limitations, we may need to
     // select stopPreview, but not exactly the same values for these.
@@ -106,13 +105,13 @@ public class CameraSource {
     // Public operation
     // ==============================================================================================
 
-    public CameraSource(Activity activity, Size requestedSize) {
+    public CameraSource(Activity activity, PreviewSize requestedSize) {
         this.activity = activity;
         //  always w > h when get params form camera preview
         if (requestedSize.getWidth() > requestedSize.getHeight())
             this.requestedSize = requestedSize;
         else
-            this.requestedSize = new Size(requestedSize.getHeight(), requestedSize.getWidth());
+            this.requestedSize = new PreviewSize(requestedSize.getHeight(), requestedSize.getWidth());
     }
 
     /**
@@ -209,7 +208,7 @@ public class CameraSource {
     /**
      * Returns the preview size that is currently in use by the underlying camera.
      */
-    public Size getPreviewSize() {
+    public PreviewSize getPreviewSize() {
         return previewSize;
     }
 
@@ -247,7 +246,7 @@ public class CameraSource {
         if (sizePair == null) {
             throw new IOException("Could not find suitable preview size.");
         }
-        Size pictureSize = sizePair.pictureSize();
+        PreviewSize pictureSize = sizePair.pictureSize();
         previewSize = sizePair.previewSize();
 
         int[] previewFpsRange = selectPreviewFpsRange(camera, requestedFps);
@@ -339,7 +338,7 @@ public class CameraSource {
         SizePair selectedPair = null;
         int minDiff = Integer.MAX_VALUE;
         for (SizePair sizePair : validPreviewSizes) {
-            Size size = sizePair.previewSize();
+            PreviewSize size = sizePair.previewSize();
             int diff = Math.abs(size.getWidth() - desiredWidth)
                     + Math.abs(size.getHeight() - desiredHeight);
             if (diff < minDiff) {
@@ -358,22 +357,22 @@ public class CameraSource {
      * null, then there is no picture size with the same aspect ratio as the preview size.
      */
     private static class SizePair {
-        private final Size preview;
-        private Size picture;
+        private final PreviewSize preview;
+        private PreviewSize picture;
 
         SizePair(Camera.Size previewSize, @Nullable Camera.Size pictureSize) {
-            preview = new Size(previewSize.width, previewSize.height);
+            preview = new PreviewSize(previewSize.width, previewSize.height);
             if (pictureSize != null) {
-                picture = new Size(pictureSize.width, pictureSize.height);
+                picture = new PreviewSize(pictureSize.width, pictureSize.height);
             }
         }
 
-        Size previewSize() {
+        PreviewSize previewSize() {
             return preview;
         }
 
         @Nullable
-        Size pictureSize() {
+        PreviewSize pictureSize() {
             return picture;
         }
     }
@@ -509,7 +508,7 @@ public class CameraSource {
      * @return a new preview buffer of the appropriate size for the current camera settings
      */
     @SuppressLint("InlinedApi")
-    private byte[] createPreviewBuffer(Size previewSize) {
+    private byte[] createPreviewBuffer(PreviewSize previewSize) {
         int bitsPerPixel = ImageFormat.getBitsPerPixel(ImageFormat.NV21);
         long sizeInBits = (long) previewSize.getHeight() * previewSize.getWidth() * bitsPerPixel;
         int bufferSize = (int) Math.ceil(sizeInBits / 8.0d) + 1;
@@ -626,7 +625,7 @@ public class CameraSource {
                         try {
                             // Wait for the next frame to be received from the camera, since we
                             // don't have it yet.
-                            Log.i(TAG, "lock wait");
+//                            Log.i(TAG, "lock wait");
                             lock.wait();
                         } catch (InterruptedException e) {
                             Log.d(TAG, "Frame processor loop terminated.", e);

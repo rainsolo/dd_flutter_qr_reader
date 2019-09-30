@@ -53,22 +53,22 @@ List<String> serializeCodeFormatsList(List<CodeFormat> formats) {
   return list;
 }
 
-CameraLensDirection _parseCameraLensDirection(String string) {
-  switch (string) {
-    case 'front':
-      return CameraLensDirection.front;
-    case 'back':
-      return CameraLensDirection.back;
-    case 'external':
-      return CameraLensDirection.external;
-  }
-  throw ArgumentError('Unknown CameraLensDirection value');
-}
-
 /// Completes with a list of available cameras.
 ///
 /// May throw a [QRReaderException].
 Future<List<CameraDescription>> availableCameras() async {
+  CameraLensDirection _parseCameraLensDirection(String string) {
+    switch (string) {
+      case 'front':
+        return CameraLensDirection.front;
+      case 'back':
+        return CameraLensDirection.back;
+      case 'external':
+        return CameraLensDirection.external;
+    }
+    throw ArgumentError('Unknown CameraLensDirection value');
+  }
+
   try {
     final List<dynamic> cameras = await _channel.invokeMethod('availableCameras');
     return cameras.map((dynamic camera) {
@@ -291,28 +291,37 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   StreamSubscription<dynamic> _eventSubscription;
   Completer<void> _creatingCompleter;
 
-  QRReaderController(this.description, this.resolutionPreset, this.codeFormats, this.onCodeRead)
-      : super(const QRReaderValue.uninitialized());
+  QRReaderController(
+    this.description,
+    this.resolutionPreset,
+    this.onCodeRead, {
+    this.codeFormats = const <CodeFormat>[
+      CodeFormat.qr,
+    ],
+  }) : super(const QRReaderValue.uninitialized());
 
   /// Initializes the camera on the device.
   ///
   /// Throws a [QRReaderException] if the initialization fails.
-  Future<void> initialize() async {
-    if (_isDisposed) {
-      return Future<void>.value();
-    }
+  Future<void> initialize({Size size}) async {
+    if (_isDisposed) return Future<void>.value();
 
     try {
       _creatingCompleter = Completer<void>();
-//      _channel.setMethodCallHandler(_handleMethod);
+
       final Map<dynamic, dynamic> reply = await _channel.invokeMethod(
         'initialize',
         <String, dynamic>{
           'cameraName': description.name,
           'resolutionPreset': serializeResolutionPreset(resolutionPreset),
           'codeFormats': serializeCodeFormatsList(codeFormats),
+          'previewWidth': size?.width,
+          'previewHeight': size?.height,
         },
       );
+
+      if (_isDisposed) return Future<void>.value();
+
       _textureId = reply['textureId'];
       value = value.copyWith(
         isInitialized: true,
@@ -324,7 +333,9 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     } on PlatformException catch (e) {
       throw QRReaderException(e.code, e.message);
     }
+
     _creatingCompleter.complete();
+
     return _creatingCompleter.future;
 //    _eventSubscription =
 //        EventChannel('fast_qr_reader_view/cameraEvents$_textureId').receiveBroadcastStream().listen(_listener);
@@ -349,19 +360,6 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
 //    }
 //  }
 
-  /// Toggle flashlight
-//  Future<void> toggleFlash() async {
-//    try {
-//      value = value.copyWith(isScanning: false);
-//      await _channel.invokeMethod(
-//        'toggleFlash',
-//        <String, dynamic>{'textureId': _textureId},
-//      );
-//    } on PlatformException catch (e) {
-//      throw QRReaderException(e.code, e.message);
-//    }
-//  }
-
   /// Start a QR scan.
   ///
   /// Throws a [QRReaderException] if the capture fails.
@@ -372,27 +370,34 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
         'startScanning was called on uninitialized QRReaderController',
       );
     }
+
     if (value.isScanning) {
       throw QRReaderException(
         'A scan has already started.',
         'startScanning was called when a recording is already started.',
       );
     }
+
     try {
       await _channel.invokeMethod(
         'startScan',
         <String, dynamic>{'textureId': _textureId},
       );
-      value = value.copyWith(isScanning: true);
     } on PlatformException catch (e) {
       throw QRReaderException(e.code, e.message);
     }
 
-    _eventSubscription = EventChannel('fast_qr_reader_view/scan').receiveBroadcastStream().listen((dynamic data) {
-      if (data is String) {
-        print('Dart Accept data = $data');
-      }
-    });
+    if (_isDisposed) return;
+
+    value = value.copyWith(isScanning: true);
+    _eventSubscription = EventChannel('fast_qr_reader_view/scan').receiveBroadcastStream().listen(
+      (Object data) {
+        onCodeRead(data);
+      },
+      onError: (Object error) {
+        print(error);
+      },
+    );
   }
 
   /// Stop scanning.
@@ -403,12 +408,14 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
         'stopScanning was called on uninitialized QRReaderController',
       );
     }
+
     if (!value.isScanning) {
       throw QRReaderException(
         'No scanning is happening',
         'stopScanning was called when the scanner was not scanning.',
       );
     }
+
     try {
       value = value.copyWith(isScanning: false);
       await _channel.invokeMethod(
@@ -423,20 +430,18 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   /// Releases the resources of this camera.
   @override
   Future<void> dispose() async {
-    if (_isDisposed) {
-      return;
-    }
+    if (!_isDisposed) {
+      _isDisposed = true;
+      super.dispose();
 
-    _isDisposed = true;
-    super.dispose();
-
-    if (_creatingCompleter != null) {
-      await _creatingCompleter.future;
-      await _channel.invokeMethod<void>(
-        'dispose',
-        <String, dynamic>{'textureId': _textureId},
-      );
-      await _eventSubscription?.cancel();
+      if (_creatingCompleter != null) {
+        await _creatingCompleter.future;
+        await _channel.invokeMethod<void>(
+          'dispose',
+          <String, dynamic>{'textureId': _textureId},
+        );
+        await _eventSubscription?.cancel();
+      }
     }
   }
 

@@ -164,8 +164,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, Widg
     if (qrController != null) {
       await qrController.dispose();
     }
-    qrController = new QRReaderController(
-        cameraDescription, ResolutionPreset.high, [CodeFormat.qr, CodeFormat.pdf417], onCodeRead);
+    qrController = new QRReaderController(cameraDescription, ResolutionPreset.high, onCodeRead);
 
     // If the controller is updated then update the UI.
     qrController.addListener(() {
@@ -179,8 +178,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, Widg
       await qrController.initialize();
 
       if (mounted) {
-        setState(() {});
-        qrController.startScanning();
+        setState(() {
+          qrController?.startScanning();
+        });
       }
     } on QRReaderException catch (e) {
       logError(e.code, e.description);

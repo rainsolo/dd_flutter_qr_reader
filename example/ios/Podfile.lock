@@ -1,20 +1,20 @@
 PODS:
-  - fast_qr_reader_view (0.0.1):
+  - dd_flutter_qr_reader (0.0.1):
     - Flutter
   - Flutter (1.0.0)
 
 DEPENDENCIES:
-  - fast_qr_reader_view (from `.symlinks/plugins/fast_qr_reader_view/ios`)
+  - dd_flutter_qr_reader (from `.symlinks/plugins/dd_flutter_qr_reader/ios`)
   - Flutter (from `.symlinks/flutter/ios`)
 
 EXTERNAL SOURCES:
-  fast_qr_reader_view:
-    :path: ".symlinks/plugins/fast_qr_reader_view/ios"
+  dd_flutter_qr_reader:
+    :path: ".symlinks/plugins/dd_flutter_qr_reader/ios"
   Flutter:
     :path: ".symlinks/flutter/ios"
 
 SPEC CHECKSUMS:
-  fast_qr_reader_view: d54b4b137f6602def4d0bf5b9dcbb9ac943adea9
+  dd_flutter_qr_reader: a82df861831e64f0b02eb321c9296bc198a78036
   Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
 
 PODFILE CHECKSUM: 27341c1ab2a92ab24c1e60a397ab924b94c94ff5

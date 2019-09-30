@@ -1,7 +1,5 @@
 #import "FastQrReaderViewPlugin.h"
-#import <fast_qr_reader_view/fast_qr_reader_view-Swift.h>
-
-//#import "fast_qr_reader_view-Swift.h"
+#import <dd_flutter_qr_reader/dd_flutter_qr_reader-Swift.h>
 
 @implementation FastQrReaderViewPlugin
 
