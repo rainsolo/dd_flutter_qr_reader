@@ -16,14 +16,25 @@ fileprivate extension NSError {
     }
 }
 
-fileprivate let formatError: [String : String] = [
-    "event": "error",
-    "errorDescription": "数据类型错误",
-]
-fileprivate let cameraError: [String : String] = [
-    "event": "error",
-    "errorDescription": "数据类型错误",
-]
+//fileprivate func makeError(code: String, desc: String) -> [String: String] {
+//    return [
+//        "event": "error",
+//        "errorDescription": desc,
+//    ]
+//}
+
+fileprivate var accessError: FlutterError {
+    return FlutterError(code: "permission", message: "cannot access the camera", details: nil)
+}
+
+fileprivate var formatError: FlutterError {
+    return FlutterError(code: "format", message: "数据类型错误", details: nil)
+}
+
+fileprivate var cameraError: FlutterError {
+    return FlutterError(code: "camera", message: "无可用相机", details: nil)
+}
+
 
 class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDelegate, FlutterStreamHandler, AVCaptureMetadataOutputObjectsDelegate {
     
@@ -118,9 +129,9 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
     
     public func stop() {
         captureSession.stopRunning()
-        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1) {
-            self.isScanning = true
-        }
+//        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1) {
+            self.isScanning = false
+//        }
     }
     
     fileprivate func dispose() {
@@ -142,20 +153,10 @@ class FMCam : NSObject, FlutterTexture, AVCaptureVideoDataOutputSampleBufferDele
             return
         }
         
+        stop()
         eventSink?(qr)
         //        channel.invokeMethod("updateCode", arguments: qr)
-        isScanning = false
     }
-    
-    //    func stopScanning(result: FlutterResult) {
-    //        isScanning = false;
-    //    }
-    //
-    //    func startScanning(result: FlutterResult) {
-    //        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1) {
-    //            self.isScanning = true
-    //        }
-    //    }
     
     // MARK: camera delegate
     
@@ -291,41 +292,47 @@ public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
             result(reply);
         } else if ("initialize" == call.method) {
             
-            guard let arguments = call.arguments as? [String: Any] else {
-                result(formatError as Any);
-                return
+            SwiftFastQrReaderViewPlugin.requestAccess { (granted) in
+                guard granted else {
+                    result(accessError)
+                    return
+                }
+                
+                guard let arguments = call.arguments as? [String: Any] else {
+                    result(formatError);
+                    return
+                }
+                
+                let cameraName: String = arguments["cameraName"] as! String
+                let resolutionPreset: String = arguments["resolutionPreset"] as! String
+                let formats: [String] = arguments["codeFormats"] as! [String]
+                self.camera?.dispose()
+                
+                guard let camera = FMCam(cameraName: cameraName, resolutionPreset: resolutionPreset, codeFormats: formats) else {
+                    // TODO: 报错
+                    result(cameraError);
+                    return
+                }
+                
+                self.camera = camera
+                
+                let textureId = self.registry.register(camera)
+                self.camera?.onFrameAvailable = { [weak self] in
+                    self?.registry.textureFrameAvailable(textureId);
+                }
+                
+                //            let eventChannel = FlutterEventChannel(name: "fast_qr_reader_view/cameraEvents\(textureId)", binaryMessenger: messenger)
+                //            eventChannel.setStreamHandler(camera)
+                //            camera.eventChannel = eventChannel
+                result([
+                    "textureId": textureId,
+                    "previewWidth": camera.previewSize.width,
+                    "previewHeight": camera.previewSize.height,
+                    //                    "captureWidth": camera.captureSize.width,
+                    //                    "captureHeight": camera.captureSize.height,
+                    ] as [String : Any]);
+                //            self.camera?.start()
             }
-            
-            let cameraName: String = arguments["cameraName"] as! String
-            let resolutionPreset: String = arguments["resolutionPreset"] as! String
-            let formats: [String] = arguments["codeFormats"] as! [String]
-            self.camera?.dispose()
-            
-            guard let camera = FMCam(cameraName: cameraName, resolutionPreset: resolutionPreset, codeFormats: formats) else {
-                // TODO: 报错
-                result(cameraError);
-                return
-            }
-            
-            self.camera = camera
-            
-            let textureId = self.registry.register(camera)
-            self.camera?.onFrameAvailable = { [weak self] in
-                self?.registry.textureFrameAvailable(textureId);
-            }
-            
-            //            let eventChannel = FlutterEventChannel(name: "fast_qr_reader_view/cameraEvents\(textureId)", binaryMessenger: messenger)
-            //            eventChannel.setStreamHandler(camera)
-            //            camera.eventChannel = eventChannel
-            result([
-                "textureId": textureId,
-                "previewWidth": camera.previewSize.width,
-                "previewHeight": camera.previewSize.height,
-                //                    "captureWidth": camera.captureSize.width,
-                //                    "captureHeight": camera.captureSize.height,
-                ] as [String : Any]);
-            //            self.camera?.start()
-            
         } else if ("startScan" == call.method) {
             self.scanChannel.setStreamHandler(self.camera)
             self.camera?.start()
@@ -336,46 +343,54 @@ public class SwiftFastQrReaderViewPlugin: NSObject, FlutterPlugin {
             self.camera?.stop()
             result(true)
         }
-        else if ("checkPermission" == call.method) {
-            let authStatus = AVCaptureDevice.authorizationStatus(for: AVMediaType.video)
-            if (authStatus == AVAuthorizationStatus.authorized) {
-                result("granted");
-            } else if (authStatus == AVAuthorizationStatus.denied) {
-                result("denied");
-            } else if (authStatus == AVAuthorizationStatus.restricted) {
-                result("restricted");
-            } else if (authStatus == AVAuthorizationStatus.notDetermined) {
-                result("unknown");
-            }
-        } else if ("settings" == call.method) {
-            UIApplication.shared.open(URL(string:UIApplicationOpenSettingsURLString)!)
-            result(nil);
-        } else if ("requestPermission" == call.method) {
-            let status = AVCaptureDevice.authorizationStatus(for: AVMediaType.video)
-            if (status == AVAuthorizationStatus.denied) { // denied
-                result("alreadyDenied");
-            } else if (status == AVAuthorizationStatus.notDetermined) { // not determined
-                AVCaptureDevice.requestAccess(for: AVMediaType.video) { (granted) in
-                    if (granted) {
-                        result("granted");
-                    } else {
-                        result("denied");
-                    }
-                }
-            } else {
-                result("unknown");
-            }
-        } else {
-            let argsMap: [String: Any] = call.arguments as! [String : Any]
-            let textureId = argsMap["textureId"] as! Int64
-            
+//        else if ("checkPermission" == call.method) {
+//            let authStatus = AVCaptureDevice.authorizationStatus(for: AVMediaType.video)
+//            if (authStatus == AVAuthorizationStatus.authorized) {
+//                result("granted");
+//            } else if (authStatus == AVAuthorizationStatus.denied) {
+//                result("denied");
+//            } else if (authStatus == AVAuthorizationStatus.restricted) {
+//                result("restricted");
+//            } else if (authStatus == AVAuthorizationStatus.notDetermined) {
+//                result("unknown");
+//            }
+//        } else if ("settings" == call.method) {
+//            UIApplication.shared.open(URL(string:UIApplicationOpenSettingsURLString)!)
+//            result(nil);
+//        } else if ("requestPermission" == call.method) {
+//            SwiftFastQrReaderViewPlugin.requestAccess { (granted) in
+//                granted ? result("granted") : result("denied");
+//            }
+//        }
+        else {
             if ("dispose" == call.method) {
-                self.registry.unregisterTexture(textureId)
-                self.camera?.dispose()
-                result(nil);
+                let argsMap: [String: Any]? = call.arguments as? [String : Any]
+                if let textureId = argsMap?["textureId"] as? Int64 {
+                    self.registry.unregisterTexture(textureId)
+                    self.camera?.dispose()
+                    result(nil);
+                } else {
+                    result(formatError)
+                }
             } else {
                 result(FlutterMethodNotImplemented);
             }
         }
     }
+    
+    
+    static public func requestAccess(_ callBack: @escaping (Bool) -> Void) {
+        let status = AVCaptureDevice.authorizationStatus(for: AVMediaType.video)
+        switch status {
+        case .authorized:
+            callBack(true)
+        case .denied, .restricted:
+            callBack(false)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: AVMediaType.video) { (granted) in
+                callBack(granted)
+            }
+        }
+    }
+    
 }
