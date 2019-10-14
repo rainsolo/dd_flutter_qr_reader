@@ -625,7 +625,7 @@ public class CameraSource {
                         try {
                             // Wait for the next frame to be received from the camera, since we
                             // don't have it yet.
-//                            Log.i(TAG, "lock wait");
+                            //                            Log.i(TAG, "lock wait");
                             lock.wait();
                         } catch (InterruptedException e) {
                             Log.d(TAG, "Frame processor loop terminated.", e);
@@ -661,7 +661,8 @@ public class CameraSource {
                 } catch (Throwable t) {
                     Log.e(TAG, "Exception thrown from receiver.", t);
                 } finally {
-                    camera.addCallbackBuffer(data.array());
+                    if (null != camera)
+                        camera.addCallbackBuffer(data.array());
                 }
             }
         }

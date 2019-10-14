@@ -372,10 +372,9 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     }
 
     if (value.isScanning) {
-      throw QRReaderException(
-        'A scan has already started.',
-        'startScanning was called when a recording is already started.',
-      );
+      print('A scan has already started.'
+          'startScanning was called when a recording is already started.');
+      return;
     }
 
     try {
@@ -410,10 +409,9 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     }
 
     if (!value.isScanning) {
-      throw QRReaderException(
-        'No scanning is happening',
-        'stopScanning was called when the scanner was not scanning.',
-      );
+      print('No scanning is happening'
+          'stopScanning was called when the scanner was not scanning.');
+      return;
     }
 
     try {
