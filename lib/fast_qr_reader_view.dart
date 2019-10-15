@@ -337,8 +337,6 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     _creatingCompleter.complete();
 
     return _creatingCompleter.future;
-//    _eventSubscription =
-//        EventChannel('fast_qr_reader_view/cameraEvents$_textureId').receiveBroadcastStream().listen(_listener);
   }
 
   /// Listen to events from the native plugins.
@@ -428,29 +426,17 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   /// Releases the resources of this camera.
   @override
   Future<void> dispose() async {
-    if (!_isDisposed) {
-      _isDisposed = true;
-      super.dispose();
+    super.dispose();
+    if (_isDisposed) return;
 
-      if (_creatingCompleter != null) {
-        await _creatingCompleter.future;
-        await _channel.invokeMethod<void>(
-          'dispose',
-          <String, dynamic>{'textureId': _textureId},
-        );
-        await _eventSubscription?.cancel();
-      }
+    _isDisposed = true;
+    await _eventSubscription?.cancel();
+
+    if (null != _creatingCompleter) {
+      await _creatingCompleter?.future;
+
+      await _channel.invokeMethod<void>('dispose', <String, dynamic>{'textureId': _textureId});
     }
   }
 
-// use EventChannel -> _eventSubscription ?
-//  Future<dynamic> _handleMethod(MethodCall call) async {
-//    switch (call.method) {
-//      case "updateCode":
-//        if (value.isScanning) {
-//          onCodeRead(call.arguments);
-//          value = value.copyWith(isScanning: false);
-//        }
-//    }
-//  }
 }
