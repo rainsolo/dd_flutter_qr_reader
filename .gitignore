@@ -75,10 +75,5 @@
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 
-#qiniu
-**/qiniu/
-
-manager_web/upload/temp/
-manager_web/upload/output/
-manager_web/upload/entry/
+# Customer
 strings_en.arb

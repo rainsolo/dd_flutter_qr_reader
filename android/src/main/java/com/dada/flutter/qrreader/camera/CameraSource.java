@@ -75,7 +75,7 @@ public class CameraSource {
 
     // These values may be requested by the caller.  Due to hardware limitations, we may need to
     // select stopPreview, but not exactly the same values for these.
-    private final float requestedFps = 20.0f;
+    private final float requestedFps = 30.0f;
 
     // True if a SurfaceTexture is being used for the preview, false if a SurfaceHolder is being
     // used for the preview.  We want to be compatible back to Gingerbread, but SurfaceTexture
@@ -339,6 +339,7 @@ public class CameraSource {
         int minDiff = Integer.MAX_VALUE;
         for (SizePair sizePair : validPreviewSizes) {
             PreviewSize size = sizePair.previewSize();
+//            Log.i(TAG, size.toString());
             int diff = Math.abs(size.getWidth() - desiredWidth)
                     + Math.abs(size.getHeight() - desiredHeight);
             if (diff < minDiff) {
@@ -442,6 +443,7 @@ public class CameraSource {
         int minDiff = Integer.MAX_VALUE;
         List<int[]> previewFpsRangeList = camera.getParameters().getSupportedPreviewFpsRange();
         for (int[] range : previewFpsRangeList) {
+//            Log.i(TAG, range[0] + " - " + range[1]);
             int deltaMin = desiredPreviewFpsScaled - range[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
             int deltaMax = desiredPreviewFpsScaled - range[Camera.Parameters.PREVIEW_FPS_MAX_INDEX];
             int diff = Math.abs(deltaMin) + Math.abs(deltaMax);

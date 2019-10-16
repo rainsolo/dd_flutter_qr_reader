@@ -65,11 +65,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, Widg
       return;
     }
     if (state == AppLifecycleState.inactive) {
-      qrController?.dispose();
+      qrController.stopScanning();
     } else if (state == AppLifecycleState.resumed) {
-      if (qrController != null) {
-        onNewCameraSelected(qrController.description);
-      }
+      qrController.startScanning();
     }
   }
 
@@ -86,15 +84,15 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, Widg
     return new MaterialApp(
       home: new Scaffold(
         key: _scaffoldKey,
-        appBar: new AppBar(
-          title: const Text('Fast QR reader example'),
-        ),
-        floatingActionButton: FloatingActionButton(
-          child: new Icon(Icons.check),
-          onPressed: () {
-            showInSnackBar("Just proving you can put anything on top of the scanner");
-          },
-        ),
+//        appBar: new AppBar(
+//          title: const Text('Fast QR reader example'),
+//        ),
+//        floatingActionButton: FloatingActionButton(
+//          child: new Icon(Icons.check),
+//          onPressed: () {
+//            showInSnackBar("Just proving you can put anything on top of the scanner");
+//          },
+//        ),
         body: Stack(
           children: <Widget>[
             new Container(
