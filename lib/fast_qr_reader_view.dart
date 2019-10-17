@@ -288,6 +288,7 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
 
   int _textureId;
   bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
   StreamSubscription<dynamic> _eventSubscription;
   Completer<void> _creatingCompleter;
 
@@ -426,10 +427,10 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
   /// Releases the resources of this camera.
   @override
   Future<void> dispose() async {
-    super.dispose();
     if (_isDisposed) return;
 
     _isDisposed = true;
+    super.dispose();
 
     if (null != _creatingCompleter) {
       await _creatingCompleter?.future;

@@ -60,14 +60,17 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin, Widg
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+//    print(state);
     // App state changed before we got the chance to initialize.
+    // inactive may be multiple invoked on android.
     if (qrController == null || !qrController.value.isInitialized) {
       return;
     }
+
     if (state == AppLifecycleState.inactive) {
-      qrController.stopScanning();
+      qrController.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      qrController.startScanning();
+      onNewCameraSelected(cameras[0]);
     }
   }
 
