@@ -389,7 +389,7 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     value = value.copyWith(isScanning: true);
     _eventSubscription = EventChannel('fast_qr_reader_view/scan').receiveBroadcastStream().listen(
       (Object data) {
-        onCodeRead(data);
+        if (!_isDisposed) onCodeRead(data);
       },
       onError: (Object error) {
         print(error);
@@ -430,12 +430,13 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     if (_isDisposed) return;
 
     _isDisposed = true;
-    await _eventSubscription?.cancel();
 
     if (null != _creatingCompleter) {
       await _creatingCompleter?.future;
 
       await _channel.invokeMethod<void>('dispose', <String, dynamic>{'textureId': _textureId});
+
+      await _eventSubscription?.cancel();
     }
   }
 

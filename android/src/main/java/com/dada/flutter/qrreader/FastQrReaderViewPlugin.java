@@ -31,6 +31,7 @@ public class FastQrReaderViewPlugin implements MethodCallHandler {
     private final CameraPermissions cameraPermissions;
     private final Registrar registrar;
     private final EventChannel scanChannel;
+    private boolean isScanListening = false;
     private CameraSource cameraSource;
 
     /**
@@ -118,10 +119,11 @@ public class FastQrReaderViewPlugin implements MethodCallHandler {
             public void onListen(Object o, EventChannel.EventSink eventSink) {
                 if (null == cameraSource) return;
 
+                isScanListening = true;
                 cameraSource.startScan(new QrProcessor(barcode -> {
-                    if (cameraSource != null)
-                        cameraSource.stopScan();
+                    if (cameraSource == null || !isScanListening) return;
 
+                    cameraSource.stopScan();
                     if (registrar.activity() != null) {
                         registrar.activity().runOnUiThread(() -> eventSink.success(barcode));
                     }
@@ -130,6 +132,7 @@ public class FastQrReaderViewPlugin implements MethodCallHandler {
 
             @Override
             public void onCancel(Object o) {
+                isScanListening = false;
             }
         });
         result.success(null);
